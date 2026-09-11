@@ -35,4 +35,19 @@ API.interceptors.request.use(
   }
 );
 
+// Response Interceptor: Automatically handles expired tokens (401 Unauthorized)
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      console.warn('Session token expired or invalid. Clearing session...');
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default API;

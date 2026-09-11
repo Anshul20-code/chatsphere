@@ -31,12 +31,25 @@ export const SocketProvider = ({ children }) => {
         setOnlineUsers(usersList);
       };
 
+      // Handle socket connection authentication errors (e.g. token expired)
+      const handleConnectError = (err) => {
+        console.warn('[SocketContext] Connection error:', err.message);
+        if (err.message && (err.message.includes('Authentication error') || err.message.includes('jwt expired'))) {
+          localStorage.removeItem('user');
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }
+      };
+
       newSocket.on('onlineUsersList', handleOnlineList);
+      newSocket.on('connect_error', handleConnectError);
 
       // Clean up the connection on logout or when the user changes
       return () => {
         console.log('[SocketContext] Disconnecting socket...');
         newSocket.off('onlineUsersList', handleOnlineList);
+        newSocket.off('connect_error', handleConnectError);
         newSocket.disconnect();
       };
     } else {

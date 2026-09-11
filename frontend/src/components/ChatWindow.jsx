@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
-import { Send, ArrowLeft, MessageSquare, Compass } from 'lucide-react';
+import { Send, ArrowLeft, MessageSquare, Compass, Trash2 } from 'lucide-react';
 
 /**
  * ChatWindow Component
  * Renders the chat session room between the logged-in user and the selected partner.
  */
-const ChatWindow = ({ selectedUser, messages, onSendMessage, currentUser, onBack, socket, isTypingPartner }) => {
+const ChatWindow = ({ selectedUser, messages, onSendMessage, currentUser, onBack, socket, isTypingPartner, onClearChat }) => {
   const [text, setText] = useState('');
   const [isTypingSelf, setIsTypingSelf] = useState(false);
   const typingTimeoutRef = useRef(null);
@@ -123,7 +123,7 @@ const ChatWindow = ({ selectedUser, messages, onSendMessage, currentUser, onBack
         </div>
 
         {/* Username & Subtitle */}
-        <div className="text-left">
+        <div className="text-left flex-1 min-w-0">
           <h2 className="text-sm font-semibold text-white truncate max-w-[180px] md:max-w-xs">
             {selectedUser.username}
           </h2>
@@ -133,6 +133,21 @@ const ChatWindow = ({ selectedUser, messages, onSendMessage, currentUser, onBack
             <p className="text-[10px] text-slate-500 truncate">{selectedUser.email}</p>
           )}
         </div>
+
+        {/* Clear Chat Trash Button */}
+        {onClearChat && (
+          <button
+            onClick={() => {
+              if (window.confirm(`Clear all chat history with ${selectedUser.username}?`)) {
+                onClearChat();
+              }
+            }}
+            title="Clear Chat History"
+            className="p-2 text-slate-400 hover:text-red-400 bg-slate-950/60 hover:bg-red-500/10 border border-slate-800 hover:border-red-500/20 rounded-xl transition-all duration-200"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
 
       </div>
 

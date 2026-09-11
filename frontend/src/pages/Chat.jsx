@@ -21,6 +21,7 @@ const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState({});
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [lastMessages, setLastMessages] = useState({});
 
   // UX states
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -63,6 +64,20 @@ const Chat = () => {
         // GET message logs between logged-in user and selected partner
         const response = await API.get(`/api/messages/${selectedUser._id}`);
         setMessages(response.data);
+
+        // Set the latest message preview for selected user
+        if (response.data.length > 0) {
+          const lastMsg = response.data[response.data.length - 1];
+          const senderId = lastMsg.sender._id || lastMsg.sender;
+          setLastMessages((prev) => ({
+            ...prev,
+            [selectedUser._id]: {
+              messageText: lastMsg.messageText,
+              createdAt: lastMsg.createdAt,
+              sender: senderId
+            }
+          }));
+        }
       } catch (err) {
         console.error('Failed to load message logs:', err);
       } finally {
@@ -92,28 +107,42 @@ const Chat = () => {
     };
   }, [socket]);
 
+  // Helper utility to safely convert any ID object or string to a plain string
+  const toStr = (id) => String(id?._id || id || '');
+
   // Set up message socket receiver. Reloaded on selectedUser changes
   // to avoid stale selections inside callback closure.
   useEffect(() => {
     if (!socket) return;
 
     const handleReceiveMessage = (message) => {
-      const senderId = message.sender._id || message.sender;
-      const receiverId = message.receiver._id || message.receiver;
+      const senderId = toStr(message.sender);
+      const receiverId = toStr(message.receiver);
+      const currentUserId = toStr(user._id);
+      const selectedId = toStr(selectedUser?._id);
 
-      if (selectedUser) {
-        const isFromSelected = senderId === selectedUser._id;
-        const isToSelected = receiverId === selectedUser._id;
+      // Determine who the other chat partner is in this message transaction
+      const partnerId = senderId === currentUserId ? receiverId : senderId;
 
-        if (isFromSelected || isToSelected) {
-          setMessages((prev) => [...prev, message]);
-          return; // Skip counting as unread if the active chat window is already open
+      // 1. Update last message preview and timestamp for sidebar sorting
+      setLastMessages((prev) => ({
+        ...prev,
+        [partnerId]: {
+          messageText: message.messageText,
+          createdAt: message.createdAt || new Date().toISOString(),
+          sender: senderId
         }
+      }));
+
+      // 2. Check if this message belongs to the currently open chat conversation
+      if (selectedId && (senderId === selectedId || receiverId === selectedId)) {
+        setMessages((prev) => [...prev, message]);
+        // If current chat is open, do not count as unread
+        return;
       }
 
-      // If conversation is NOT open, and we are the receiver of the message,
-      // increment the unread count for the sender of the message.
-      if (receiverId === user._id) {
+      // 3. If conversation is NOT open, and we are the receiver, increment unread count for sender
+      if (receiverId === currentUserId) {
         setUnreadCounts((prev) => ({
           ...prev,
           [senderId]: (prev[senderId] || 0) + 1
@@ -126,17 +155,19 @@ const Chat = () => {
     return () => {
       socket.off('receiveMessage', handleReceiveMessage);
     };
-  }, [socket, selectedUser]);
+  }, [socket, selectedUser, user._id]);
 
   /**
    * Handler for selecting a user from the sidebar
    */
   const handleSelectUser = (userItem) => {
+    const targetId = toStr(userItem._id);
     setSelectedUser(userItem);
-    // Reset unread message count for the selected user to 0
+
+    // Reset unread message count ONLY when user explicitly clicks the conversation
     setUnreadCounts((prev) => ({
       ...prev,
-      [userItem._id]: 0
+      [targetId]: 0
     }));
   };
 
@@ -146,12 +177,44 @@ const Chat = () => {
    */
   const handleSendMessage = (messageText) => {
     if (!selectedUser || !socket) return;
+    const targetId = toStr(selectedUser._id);
+    const currentUserId = toStr(user._id);
+
+    // Update last message preview immediately for current user for instant top sorting
+    setLastMessages((prev) => ({
+      ...prev,
+      [targetId]: {
+        messageText: messageText,
+        createdAt: new Date().toISOString(),
+        sender: currentUserId
+      }
+    }));
 
     // Emit the message details
     socket.emit('sendMessage', {
-      receiverId: selectedUser._id,
+      receiverId: targetId,
       messageText: messageText
     });
+  };
+
+  /**
+   * Handler for clearing chat history with the selected user
+   */
+  const handleClearChat = async () => {
+    if (!selectedUser) return;
+    const targetId = toStr(selectedUser._id);
+    try {
+      await API.delete(`/api/messages/${targetId}`);
+      setMessages([]);
+      setLastMessages((prev) => {
+        const next = { ...prev };
+        delete next[targetId];
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to clear chat history:', err);
+      alert('Failed to clear chat history.');
+    }
   };
 
   return (
@@ -186,6 +249,7 @@ const Chat = () => {
             onlineUsers={onlineUsers}
             typingUsers={typingUsers}
             unreadCounts={unreadCounts}
+            lastMessages={lastMessages}
           />
         )}
       </div>
@@ -214,6 +278,7 @@ const Chat = () => {
             onBack={() => setSelectedUser(null)} // Click to go back to sidebar list on mobile
             socket={socket}
             isTypingPartner={!!typingUsers[selectedUser?._id]}
+            onClearChat={handleClearChat}
           />
         )}
       </div>
