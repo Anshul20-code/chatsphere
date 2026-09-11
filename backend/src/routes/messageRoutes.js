@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { getChatHistory, clearChatHistory } = require('../controllers/messageController');
+const { getChatHistory, clearChatHistory, getLastMessages } = require('../controllers/messageController');
 const { protect } = require('../middleware/authMiddleware');
+
+// GET /api/messages/last-messages (Fetch all conversation previews)
+router.get('/last-messages', protect, getLastMessages);
 
 // Map getChatHistory to GET /api/messages/:otherUserId
 router.get('/:otherUserId', protect, getChatHistory);

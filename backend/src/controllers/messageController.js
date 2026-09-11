@@ -64,7 +64,46 @@ const clearChatHistory = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get latest message summary for each active conversation of current user
+ * @route   GET /api/messages/last-messages
+ * @access  Private (Requires auth token)
+ */
+const getLastMessages = async (req, res) => {
+  try {
+    const currentUserId = req.user._id;
+
+    // Find all messages sent or received by current user
+    const messages = await Message.find({
+      $or: [
+        { sender: currentUserId },
+        { receiver: currentUserId }
+      ]
+    }).sort({ createdAt: 1 });
+
+    // Build a map of partnerId -> last message
+    const lastMessagesMap = {};
+    messages.forEach((msg) => {
+      const senderId = String(msg.sender);
+      const receiverId = String(msg.receiver);
+      const partnerId = senderId === String(currentUserId) ? receiverId : senderId;
+
+      lastMessagesMap[partnerId] = {
+        messageText: msg.messageText,
+        createdAt: msg.createdAt,
+        sender: senderId
+      };
+    });
+
+    res.json(lastMessagesMap);
+  } catch (error) {
+    console.error('Get Last Messages Error:', error.message);
+    res.status(500).json({ message: 'Server error. Could not fetch last messages.' });
+  }
+};
+
 module.exports = {
   getChatHistory,
-  clearChatHistory
+  clearChatHistory,
+  getLastMessages
 };

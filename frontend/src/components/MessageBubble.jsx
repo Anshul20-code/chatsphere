@@ -9,11 +9,13 @@ import React from 'react';
  * @param {object} currentUser - The currently authenticated user object
  */
 const MessageBubble = ({ message, currentUser }) => {
-  // Check if the current logged-in user is the sender of this message.
-  // We check both raw string ID and nested object ID because backend populates sender details in some endpoints.
-  const isOwnMessage = 
-    message.sender === currentUser._id || 
-    message.sender?._id === currentUser._id;
+  // Helper utility to safely convert any ID object or string to a plain string
+  const toStr = (id) => String(id?._id || id || '');
+
+  // Check if the current logged-in user is the sender of this message
+  const senderId = toStr(message.sender);
+  const currentUserId = toStr(currentUser?._id || currentUser);
+  const isOwnMessage = senderId === currentUserId;
 
   /**
    * Helper function to format ISO Date string into a human-readable time (e.g. "10:30 AM")

@@ -29,10 +29,10 @@ const Chat = () => {
   const [error, setError] = useState('');
 
   /**
-   * Fetch all registered users on initial component mount.
+   * Fetch all registered users and conversation summaries on initial component mount.
    */
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchUsersAndSummaries = async () => {
       try {
         setLoadingUsers(true);
         setError('');
@@ -40,6 +40,14 @@ const Chat = () => {
         // GET all registered users from backend API
         const response = await API.get('/api/users');
         setUsers(response.data);
+
+        // GET last messages summary for all conversations
+        try {
+          const lastMsgRes = await API.get('/api/messages/last-messages');
+          setLastMessages(lastMsgRes.data || {});
+        } catch (e) {
+          console.warn('Could not load last messages summary:', e);
+        }
       } catch (err) {
         console.error('Failed to load users:', err);
         setError('Failed to load users list. Please try again later.');
@@ -48,7 +56,7 @@ const Chat = () => {
       }
     };
 
-    fetchUsers();
+    fetchUsersAndSummaries();
   }, []);
 
   /**
