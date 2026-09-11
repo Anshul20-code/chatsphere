@@ -31,8 +31,8 @@ const initSocket = (server) => {
       // Verify JWT token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
-      // Store the authenticated user's ID on the socket instance
-      socket.userId = decoded.id;
+      // Store the authenticated user's ID on the socket instance as a string
+      socket.userId = String(decoded.id);
       next();
     } catch (error) {
       console.error('Socket Auth Error:', error.message);
@@ -44,8 +44,8 @@ const initSocket = (server) => {
   io.on('connection', (socket) => {
     console.log(`User connected: Socket ID = ${socket.id}, User ID = ${socket.userId}`);
 
-    // Map the user ID to the socket ID to track online status
-    onlineUsers.set(socket.userId, socket.id);
+    // Map the user ID string to the socket ID to track online status
+    onlineUsers.set(String(socket.userId), socket.id);
 
     // Broadcast the updated list of online user IDs to all connected clients
     io.emit('onlineUsersList', Array.from(onlineUsers.keys()));
@@ -63,23 +63,25 @@ const initSocket = (server) => {
           return socket.emit('error', { message: 'receiverId and messageText are required' });
         }
 
+        const targetReceiverId = String(receiverId);
+
         // 1. Save message to MongoDB
         const newMessage = await Message.create({
           sender: socket.userId,
-          receiver: receiverId,
+          receiver: targetReceiverId,
           messageText: messageText
         });
 
-        // 2. Format message with populated sender details (optional but helpful)
+        // 2. Format message with populated sender & receiver details
         const populatedMessage = await Message.findById(newMessage._id)
           .populate('sender', 'username email')
           .populate('receiver', 'username email');
 
-        // 3. Emit message back to sender (useful if they have multiple tabs/devices open)
+        // 3. Emit message back to sender
         socket.emit('receiveMessage', populatedMessage);
 
         // 4. If the receiver is online, emit the message to their socket
-        const receiverSocketId = onlineUsers.get(receiverId);
+        const receiverSocketId = onlineUsers.get(targetReceiverId);
         if (receiverSocketId) {
           io.to(receiverSocketId).emit('receiveMessage', populatedMessage);
         }
@@ -99,7 +101,9 @@ const initSocket = (server) => {
 
       if (!receiverId) return;
 
-      const receiverSocketId = onlineUsers.get(receiverId);
+      const targetReceiverId = String(receiverId);
+      const receiverSocketId = onlineUsers.get(targetReceiverId);
+
       if (receiverSocketId) {
         // Emit 'typingStatus' event to the receiver with the sender's details
         io.to(receiverSocketId).emit('typingStatus', {
