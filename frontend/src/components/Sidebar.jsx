@@ -181,7 +181,7 @@ const Sidebar = ({
                       </p>
                     ) : lastMsg ? (
                       <p className={`text-xs truncate ${unreadCount > 0 ? 'text-indigo-300 font-medium' : 'text-slate-400'}`}>
-                        {lastMsg.sender === currentUser?._id ? <span className="text-slate-500">You: </span> : null}
+                        {toStr(lastMsg.sender) === toStr(currentUser?._id) ? <span className="text-slate-500">You: </span> : null}
                         {lastMsg.messageText}
                       </p>
                     ) : (

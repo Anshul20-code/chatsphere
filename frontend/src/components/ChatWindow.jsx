@@ -30,6 +30,9 @@ const ChatWindow = ({ selectedUser, messages, onSendMessage, currentUser, onBack
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, selectedUser]);
 
+  // Helper utility to safely convert any ID object or string to a plain string
+  const toStr = (id) => String(id?._id || id || '');
+
   // Handle message sending form submit
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -39,8 +42,8 @@ const ChatWindow = ({ selectedUser, messages, onSendMessage, currentUser, onBack
     onSendMessage(text);
 
     // Stop typing indicator immediately when message is sent
-    if (socket && isTypingSelf) {
-      socket.emit('typing', { receiverId: selectedUser._id, isTyping: false });
+    if (socket && isTypingSelf && selectedUser) {
+      socket.emit('typing', { receiverId: toStr(selectedUser._id), isTyping: false });
       setIsTypingSelf(false);
     }
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -54,19 +57,20 @@ const ChatWindow = ({ selectedUser, messages, onSendMessage, currentUser, onBack
     const val = e.target.value;
     setText(val);
 
-    if (!socket) return;
+    if (!socket || !selectedUser) return;
+    const targetId = toStr(selectedUser._id);
 
     // If we were not previously typing, inform the server
     if (!isTypingSelf) {
       setIsTypingSelf(true);
-      socket.emit('typing', { receiverId: selectedUser._id, isTyping: true });
+      socket.emit('typing', { receiverId: targetId, isTyping: true });
     }
 
     // Debounce the stop typing notification
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('typing', { receiverId: selectedUser._id, isTyping: false });
+      socket.emit('typing', { receiverId: targetId, isTyping: false });
       setIsTypingSelf(false);
     }, 2000); // Stop indicating typing after 2 seconds of inactivity
   };

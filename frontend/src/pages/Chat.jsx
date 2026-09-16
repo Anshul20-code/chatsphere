@@ -144,7 +144,12 @@ const Chat = () => {
 
       // 2. Check if this message belongs to the currently open chat conversation
       if (selectedId && (senderId === selectedId || receiverId === selectedId)) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          const msgIdStr = toStr(message._id);
+          const alreadyExists = prev.some((m) => toStr(m._id) === msgIdStr);
+          if (alreadyExists) return prev;
+          return [...prev, message];
+        });
         // If current chat is open, do not count as unread
         return;
       }
