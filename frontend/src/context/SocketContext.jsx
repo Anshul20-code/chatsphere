@@ -19,7 +19,8 @@ export const SocketProvider = ({ children }) => {
     if (user && user.token) {
       console.log('[SocketContext] User logged in. Connecting socket...');
 
-      const newSocket = io('http://localhost:5000', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      const newSocket = io(backendUrl, {
         auth: { token: user.token }
       });
 
