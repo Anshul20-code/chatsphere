@@ -3,7 +3,7 @@ import axios from 'axios';
 // Create an instance of Axios with custom default configurations
 const API = axios.create({
   // Base URL for all backend API routes
-  baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000',
   // Timeout request after 10 seconds if backend is unresponsive
   timeout: 10000,
   headers: {
